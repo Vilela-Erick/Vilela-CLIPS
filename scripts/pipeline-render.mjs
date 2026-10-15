@@ -3,6 +3,8 @@ import { join, resolve } from 'node:path';
 import { createClipGraphics } from './clips-graphics.mjs';
 import { verticalFilter, safeHook, uniqueName } from './clips-core.mjs';
 import { detectLayoutFromVideo } from './layout-detection.mjs';
+import { smartVerticalFilter } from './framing/ffmpeg-filter.mjs';
+import { SMART_FRAMING_VERSION } from './framing/version.mjs';
 import { sha256 } from './youtube-core.mjs';
 import { readJson, runProcess, saveJson } from './pipeline-runtime.mjs';
 
@@ -11,13 +13,13 @@ export const RENDER_VERSION = 2;
 
 export function renderKey(videoId, candidate, layout, settings) {
   return sha256(JSON.stringify({ videoId, start: candidate.start, end: candidate.end, hook: candidate.hook,
-    layout: { layout: layout.layout, crop: layout.crop ?? null },
-    layoutVersion: LAYOUT_VERSION, renderVersion: RENDER_VERSION, settings }));
+    framing: { strategy: layout.strategy ?? layout.layout, crop: layout.crop ?? null, regions: layout.regions ?? null },
+    framingVersion: SMART_FRAMING_VERSION, renderVersion: RENDER_VERSION, settings }));
 }
 
 export function renderArgs(context, candidate, graphics, layout, encoder, destination) {
   const { metadata } = context;
-  const filter = verticalFilter(layout.crop ?? null, graphics.hookY, graphics.brandY, metadata.videoStreamIndex);
+  const filter = smartVerticalFilter(layout, graphics.hookY, graphics.brandY, metadata.videoStreamIndex);
   const args = ['-hide_banner', '-loglevel', 'error', '-nostats', '-progress', 'pipe:1', '-y',
     '-ss', String(candidate.start), '-i', metadata.source,
     '-loop', '1', '-framerate', '30', '-i', graphics.hookPath,

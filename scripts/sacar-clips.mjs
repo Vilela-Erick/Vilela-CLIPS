@@ -3,15 +3,22 @@ import { writeFileSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 import { getVideoContext, getSharedTranscript, PROJECT_ROOT } from './pipeline-cache.mjs';
 import { getYoutubeReview, getDiscovery, selectCandidates, SELECTION_RULES_VERSION } from './pipeline-analysis.mjs';
-import { framingForCandidate, LAYOUT_VERSION, renderSelected } from './pipeline-render.mjs';
+import { renderSelected } from './pipeline-render.mjs';
+import { framingForClip } from './framing/framing-cache.mjs';
+import { previewFraming } from './framing/preview.mjs';
+import { SMART_FRAMING_VERSION } from './framing/version.mjs';
+import { FRAMING_SCORE_REVISION } from './framing/framing-score.mjs';
 import { timestamp, sha256 } from './youtube-core.mjs';
 import { readJson, saveJson } from './pipeline-runtime.mjs';
 
 export function parseClipOptions(args) {
-  const options = { cantidad: Infinity, minScore: 7.5, encoder: 'auto', debug: false, detectSidebars: true };
+  const options = { cantidad: Infinity, minScore: 7.5, encoder: 'auto', debug: false,
+    detectSidebars: true, previewFraming: false, debugFraming: false };
   for (let index = 0; index < args.length; index++) {
     const arg = args[index];
     if (arg === '--debug') options.debug = true;
+    else if (arg === '--preview-framing') options.previewFraming = true;
+    else if (arg === '--debug-framing') options.debugFraming = true;
     else if (arg === '--detect-sidebars') options.detectSidebars = true;
     else if (['--cantidad', '--min-score', '--encoder'].includes(arg)) {
       if (!args[index + 1]) throw new Error(`Falta el valor de ${arg}.`);
@@ -27,19 +34,33 @@ export function parseClipOptions(args) {
   return options;
 }
 
-async function framing(context, candidates, detectSidebars) {
+async function framing(context, candidates, options) {
   const path = join(context.dir, 'framing.json');
   const key = sha256(JSON.stringify({ candidates: candidates.filter((item) => item.selected).map((item) => [item.start, item.end]),
-    layoutVersion: LAYOUT_VERSION, detectSidebars }));
+    smartFramingVersion: SMART_FRAMING_VERSION, scoreRevision: FRAMING_SCORE_REVISION,
+    detectSidebars: options.detectSidebars,
+    preview: options.previewFraming }));
   const cached = readJson(path);
-  if (cached?.cacheKey === key && Array.isArray(cached.clips)) return cached;
+  if (cached?.cacheKey === key && Array.isArray(cached.clips) && !cached.clips.some((clip) => clip.analysisError)) return cached;
   const clips = [];
-  for (const item of candidates.filter((candidate) => candidate.selected)) {
-    clips.push({ hook: item.hook, start: item.start, end: item.end, ...await framingForCandidate(context, item, detectSidebars) });
+  const selected = candidates.filter((candidate) => candidate.selected);
+  for (const item of options.previewFraming ? selected.slice(0, 1) : selected) {
+    const decision = await framingForClip(context, item, { logger: console.log });
+    clips.push({ hook: item.hook, start: item.start, end: item.end, ...decision });
   }
-  const result = { cacheKey: key, layoutVersion: LAYOUT_VERSION, clips };
-  saveJson(path, result);
+  const result = { cacheKey: key, smartFramingVersion: SMART_FRAMING_VERSION, clips };
+  if (!clips.some((clip) => clip.analysisError)) saveJson(path, result);
   return result;
+}
+
+export function formatFramingDebug(decision) {
+  const lines = [`[SMART FRAMING v${decision.version}]`, `contentType: ${decision.contentType}`,
+    `source: ${decision.source.width}x${decision.source.height} (${decision.source.aspect})`,
+    `subjects: ${decision.subjects.length}`];
+  for (const candidate of decision.candidates) lines.push(`candidate: ${candidate.strategy}${candidate.variant ? ` (${candidate.variant})` : ''} | aspect ${candidate.metrics.effectiveContentAspect} | coverage ${Math.round(candidate.metrics.subjectCoverage * 100)}% | wasted ${Math.round(candidate.metrics.wastedSpace * 100)}% | score ${candidate.metrics.score}`);
+  lines.push(`selected: ${decision.strategy}`, `reason: ${decision.reason}`,
+    `time: extraction ${decision.timings.extractionMs} ms, analysis ${decision.timings.visualAnalysisMs} ms, decision ${decision.timings.classificationAndDecisionMs} ms`);
+  return lines.join('\n');
 }
 
 function report(context, candidates, exported) {
@@ -76,9 +97,14 @@ async function main() {
   if (cached?.selectionKey !== selectionKey) saveJson(candidatesPath, { selectionKey, candidates });
   const selected = candidates.filter((item) => item.selected);
   console.log(`  ${selected.length} seleccionado(s), máximo ${options.cantidad === Infinity ? 'sin límite' : options.cantidad}, mínimo viral ${options.minScore}.`);
-  const layout = await framing(context, candidates, options.detectSidebars);
+  const layout = await framing(context, candidates, options);
+  if (options.debugFraming) for (const decision of layout.clips) console.log(formatFramingDebug(decision));
   let exported = [];
-  if (mode === 'sacar' && selected.length) {
+  if (options.previewFraming && selected.length) {
+    const previewStarted = performance.now();
+    const path = await previewFraming(context, selected[0], layout.clips[0]);
+    console.log(`Preview de framing: ${path} (${Math.round(performance.now() - previewStarted)} ms)`);
+  } else if (mode === 'sacar' && selected.length) {
     console.log('[6/7] Renderizando secuencialmente...');
     exported = await renderSelected(context, selected, layout, options);
   } else console.log('[6/7] No se renderizaron MP4.');

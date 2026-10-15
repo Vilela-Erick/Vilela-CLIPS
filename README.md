@@ -46,6 +46,7 @@ TRANSCRIPCIÓN
 - FFmpeg y `ffprobe` disponibles en `PATH`, con encoder `libx264`.
 - Codex CLI instalado y autenticado.
 - `whisper.cpp` / `whisper-cli` y acceso para descargar el modelo `small` la primera vez.
+- ONNX Runtime para Node y los modelos YuNet y MediaPipe Pose incluidos mediante `npm install` y `models/` para Smart Framing v2 en CPU.
 - Una fuente gruesa disponible: Arial Black o Segoe UI en Windows; DejaVu Sans Bold en Linux.
 
 ## Instalación
@@ -196,6 +197,8 @@ La prueba opcional que llama a Codex real está desactivada salvo que se estable
 - **Pocos candidatos:** revisa `cache/<sha256>/reporte-clips.txt`, la puntuación mínima y los cortes de idoneidad. Bajar `--min-score` puede seleccionar más candidatos existentes, pero no garantiza un número concreto.
 
 Los detalles internos de la caché y el render están en [CLIPS.md](CLIPS.md).
+
+Smart Framing v2 usa detección local de rostros y personas para elegir recortes estables o recomponer dos participantes. `--preview-framing --cantidad 1` genera un PNG de un solo clip sin renderizar el video completo; `--debug-framing` muestra las métricas de la decisión. Consulta [CLIPS.md](CLIPS.md#smart-framing-v2) para límites y detalles.
 
 ## Estado del proyecto
 

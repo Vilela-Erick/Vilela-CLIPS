@@ -13,8 +13,9 @@
     "sacar-clips": "node scripts/sacar-clips.mjs sacar"
   },
   "dependencies": {
-    "three": "0.181.2",
-    "sharp": "0.35.5"
+    "onnxruntime-node": "1.30.0",
+    "sharp": "0.35.5",
+    "three": "0.181.2"
   },
   "devDependencies": {
     "hyperframes": "0.8.82"
