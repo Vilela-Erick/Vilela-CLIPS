@@ -1,0 +1,22 @@
+{
+  "name": "primer-video",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "npx --yes hyperframes@0.8.82 preview",
+    "check": "npx --yes hyperframes@0.8.82 check",
+    "render": "npx --yes hyperframes@0.8.82 render",
+    "publish": "npx --yes hyperframes@0.8.82 publish",
+    "analizar-youtube": "node scripts/limpiar-youtube.mjs analizar",
+    "limpiar-youtube": "node scripts/limpiar-youtube.mjs limpiar",
+    "analizar-clips": "node scripts/sacar-clips.mjs analizar",
+    "sacar-clips": "node scripts/sacar-clips.mjs sacar"
+  },
+  "dependencies": {
+    "three": "0.181.2",
+    "sharp": "0.35.5"
+  },
+  "devDependencies": {
+    "hyperframes": "0.8.82"
+  }
+}

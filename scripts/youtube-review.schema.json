@@ -1,0 +1,23 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["segments"],
+  "properties": {
+    "segments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["start", "end", "severity", "reason", "text"],
+        "properties": {
+          "start": {"type": "number"},
+          "end": {"type": "number"},
+          "severity": {"type": "string", "enum": ["high", "medium"]},
+          "reason": {"type": "string"},
+          "text": {"type": "string"}
+        }
+      }
+    }
+  }
+}

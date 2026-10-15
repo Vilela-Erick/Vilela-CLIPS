@@ -1,0 +1,26 @@
+{
+  "type": "object",
+  "properties": {
+    "candidates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "start": { "type": "number" },
+          "end": { "type": "number" },
+          "hook": { "type": "string" },
+          "viralScore": { "type": "number" },
+          "contextScore": { "type": "number" },
+          "hookScore": { "type": "number" },
+          "standaloneScore": { "type": "number" },
+          "reason": { "type": "string" },
+          "selected": { "type": "boolean" }
+        },
+        "required": ["start", "end", "hook", "viralScore", "contextScore", "hookScore", "standaloneScore", "reason", "selected"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["candidates"],
+  "additionalProperties": false
+}

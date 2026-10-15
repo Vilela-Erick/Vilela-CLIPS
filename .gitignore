@@ -1,0 +1,52 @@
+# Dependencias y estado local de herramientas
+node_modules/
+.hyperframes/
+.thumbnails/
+.vscode/
+
+# Datos de trabajo y resultados del pipeline
+cache/
+work/
+work-clips/
+input/
+output/
+clips/
+snapshots/
+logs/
+tmp/
+temp/
+
+# Binarios y modelos de whisper.cpp descargados localmente
+tools/whisper/
+*.exe
+*.dll
+*.bin
+
+# Videos y audio del usuario o generados
+*.mp4
+*.mov
+*.mkv
+*.avi
+*.webm
+*.m4v
+*.wav
+*.mp3
+*.m4a
+*.aac
+*.flac
+
+# Archivos temporales, registros y secretos
+*.log
+*.part
+*.part.*
+*.tmp
+*.temp
+*.stderr.txt
+.env
+.env.*
+!.env.example
+
+# Archivos locales del sistema
+Thumbs.db
+Desktop.ini
+.DS_Store

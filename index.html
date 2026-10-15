@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="es" data-resolution="portrait">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=1080, height=1920">
+  <title>YERI LOKOLOKO — Trailer</title>
+  <script src="assets/gsap.min.js"></script>
+  <style>
+    *{box-sizing:border-box} html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#02040d}
+    #root{position:relative;width:100%;height:100%;overflow:hidden;color:#fff;font-family:Arial,sans-serif;background:#02040d;isolation:isolate}
+    .clip{position:absolute;inset:0} #space{z-index:0;background:radial-gradient(ellipse at 50% 48%,#11183b,#050817 48%,#02040d 86%)}
+    #three-layer{width:100%;height:100%;display:block}.vignette{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 45%,transparent 25%,#02040d33 55%,#02040de8)}
+    .grain{position:absolute;inset:0;opacity:.16;background-image:repeating-linear-gradient(0deg,transparent 0 3px,#b8c4ff0c 4px 5px);pointer-events:none}
+    #aura{position:absolute;width:800px;height:800px;left:140px;top:510px;border-radius:50%;background:radial-gradient(circle,#d8d9ffb0,#9276ff70 12%,#6d38fe38 33%,transparent 70%);filter:blur(45px);mix-blend-mode:screen;opacity:0}
+    #opening{z-index:1;display:grid;place-items:center}.opening-core{width:105px;height:105px;border-radius:50%;background:#eeeaff;box-shadow:0 0 50px 23px #a8a4ff,0 0 180px 100px #6b48ec9e,0 0 400px 200px #2053b769;opacity:0}
+    .opening-ring{position:absolute;width:450px;height:450px;border:1px solid #d5d8ff82;border-radius:50%;box-shadow:0 0 35px #8c6bff,inset 0 0 35px #8c6bff;opacity:0}
+    #speed-field{z-index:2;overflow:hidden;opacity:0}.speed-line{position:absolute;height:2px;background:linear-gradient(90deg,transparent,#a58dffad,#eef4ff);box-shadow:0 0 14px #9d7cfa}
+    #title-scene{z-index:3;display:flex;justify-content:center;align-items:center;perspective:900px}.title-wrap{width:100%;text-align:center;transform-style:preserve-3d}
+    .eyebrow{color:#b8c7f3;font:700 26px/1 Arial,sans-serif;letter-spacing:13px;margin-bottom:32px;opacity:0}
+    .hero{margin:0;font-size:300px;line-height:.86;letter-spacing:-13px;font-weight:900;color:#f8f8ff;text-shadow:0 5px 0 #b3b5d6,0 12px 0 #747aa9,0 24px 0 #3a3d70,0 35px 25px #010211,0 0 65px #b9afff8f;opacity:0}
+    .subtitle-row{display:flex;align-items:center;justify-content:center;margin-top:35px;gap:2px;white-space:nowrap}.letter{display:inline-block;font-size:126px;line-height:1;letter-spacing:-4px;font-weight:900;color:#ecf2ff;text-shadow:0 6px 0 #6973b5,0 14px 22px #050618,0 0 32px #7c65f6a6;opacity:0}
+    .title-rule{width:680px;height:3px;margin:45px auto 0;background:linear-gradient(90deg,transparent,#b49eff,#dbddff,#6e9cff,transparent);box-shadow:0 0 24px #af9cff;opacity:0}
+    #card-scene{z-index:4;perspective:850px}.cards-stage{position:absolute;inset:0;transform-style:preserve-3d}
+    .platform-card{position:absolute;width:640px;height:330px;left:220px;top:780px;border:1px solid #ffffff5f;border-radius:34px;background:linear-gradient(125deg,#ffffff23,#7065b42c 28%,#080d26d6 72%,#101a43dc);box-shadow:inset 0 1px 0 #ffffffa3,inset 0 0 80px #7457dc21,0 30px 85px #000b,0 0 75px var(--glow);backdrop-filter:blur(20px);transform-style:preserve-3d;opacity:0;overflow:hidden}
+    .platform-card:before{content:'';position:absolute;width:500px;height:120px;left:-100px;top:-50px;background:#ffffff52;filter:blur(55px);transform:rotate(-20deg)}
+    .card-mark{position:absolute;top:34px;left:40px;font:800 21px/1 Arial,sans-serif;letter-spacing:7px;color:#d1dbff}.card-name{position:absolute;left:37px;bottom:49px;font-size:104px;letter-spacing:-2px;line-height:1;text-shadow:0 0 32px var(--glow)}
+    .card-edge{position:absolute;height:6px;width:230px;right:37px;bottom:36px;border-radius:10px;background:var(--accent);box-shadow:0 0 22px var(--glow)}
+    #kick{--glow:#62f6bf99;--accent:#65f8b8}#tiktok{--glow:#fd6ba9a0;--accent:#fa77af}#youtube{--glow:#75a5ffad;--accent:#83aaff}
+    #converge{z-index:5;pointer-events:none}.energy-disc{position:absolute;width:480px;height:480px;left:300px;top:710px;border-radius:50%;border:6px solid #d6ccff;box-shadow:0 0 30px #fff,inset 0 0 60px #865cff,0 0 120px 55px #7b4fff;opacity:0}
+    .energy-core{position:absolute;inset:0;background:radial-gradient(circle at center,#fff,#c9ccff 5%,#8e75ff 15%,transparent 52%);opacity:0}.flash{position:absolute;inset:0;background:#f5f1ff;opacity:0}
+    #final-scene{z-index:6;display:grid;place-items:center;perspective:1000px}.final-stack{width:100%;text-align:center;transform-style:preserve-3d}
+    .final-yeri,.final-loko{margin:0;font-weight:900;color:#fff;text-shadow:0 7px 0 #9899cf,0 18px 0 #414574,0 33px 35px #000,0 0 80px #af9cff9c;opacity:0}
+    .final-yeri{font-size:305px;line-height:.88;letter-spacing:-12px}.final-loko{font-size:145px;line-height:1.08;letter-spacing:-4px}
+    .live-wrap{display:flex;align-items:center;justify-content:center;gap:22px;margin-top:72px;opacity:0}.live-dot{width:24px;height:24px;border-radius:50%;background:#ff6977;box-shadow:0 0 14px #ff7485,0 0 35px #ed405e}.live{font:900 60px/1 Arial,sans-serif;letter-spacing:16px;color:#f7e5ef;text-shadow:0 0 30px #ff5979}
+    .final-rule{height:3px;width:600px;margin:53px auto 0;background:linear-gradient(90deg,transparent,#a080ff,#f5eaff,#76b4ff,transparent);box-shadow:0 0 25px #a68eff;opacity:0}
+    #outro{z-index:9;background:#02040d;opacity:0;pointer-events:none}
+  </style>
+</head>
+<body>
+  <div data-hf-id="hf-hg61" id="root" data-composition-id="main" data-start="0" data-duration="12" data-width="1080" data-height="1920" data-fps="30">
+    <div data-hf-id="hf-0xam" id="space" class="clip" data-start="0" data-duration="12" data-track-index="0" data-layout-allow-overflow=""><canvas data-hf-id="hf-eogq" id="three-layer"></canvas><div data-hf-id="hf-q7bi" class="vignette"></div><div data-hf-id="hf-h60x" class="grain"></div><div data-hf-id="hf-246s" id="aura"></div></div>
+    <section data-hf-id="hf-qa6h" id="opening" class="clip" data-start="0" data-duration="2.2" data-track-index="1"><div data-hf-id="hf-b63i" class="opening-ring" id="opening-ring"></div><div data-hf-id="hf-gv9u" class="opening-core" id="opening-core"></div></section>
+    <div data-hf-id="hf-3sbt" id="speed-field" class="clip" data-start="2" data-duration="8.2" data-track-index="2" data-layout-allow-overflow=""></div>
+    <section data-hf-id="hf-d299" id="title-scene" class="clip" data-start="2" data-duration="6.5" data-track-index="3"><div data-hf-id="hf-h7na" class="title-wrap" id="title-wrap"><div data-hf-id="hf-sv69" class="eyebrow" id="eyebrow">EL UNIVERSO DE</div><h1 data-hf-id="hf-evlp" class="hero" id="hero" data-layout-allow-overlap="">YERI</h1><div data-hf-id="hf-evy9" class="subtitle-row" id="subtitle-row" aria-label="LOKOLOKO"></div><div data-hf-id="hf-a56e" class="title-rule" id="title-rule"></div></div></section>
+    <section data-hf-id="hf-e2qn" id="card-scene" class="clip" data-start="6" data-duration="4.15" data-track-index="4"><div data-hf-id="hf-2aym" class="cards-stage" id="cards-stage">
+      <div data-hf-id="hf-rd2c" class="platform-card" id="kick"><span data-hf-id="hf-ims7" class="card-mark">01 / DIRECTO</span><span data-hf-id="hf-6huv" class="card-name">KICK</span><span data-hf-id="hf-76aj" class="card-edge"></span></div>
+      <div data-hf-id="hf-5gq0" class="platform-card" id="tiktok"><span data-hf-id="hf-mwq7" class="card-mark">02 / CLIPS</span><span data-hf-id="hf-l7aj" class="card-name">TIKTOK</span><span data-hf-id="hf-11wb" class="card-edge"></span></div>
+      <div data-hf-id="hf-7ayt" class="platform-card" id="youtube"><span data-hf-id="hf-ujf4" class="card-mark">03 / VIDEO</span><span data-hf-id="hf-h5za" class="card-name">YOUTUBE</span><span data-hf-id="hf-0nla" class="card-edge"></span></div>
+    </div></section>
+    <div data-hf-id="hf-cnif" id="converge" class="clip" data-start="8.4" data-duration="1.8" data-track-index="5"><div data-hf-id="hf-5eay" class="energy-disc" id="energy-disc"></div><div data-hf-id="hf-jis2" class="energy-core" id="energy-core"></div><div data-hf-id="hf-u95m" class="flash" id="flash"></div></div>
+    <section data-hf-id="hf-v26s" id="final-scene" class="clip" data-start="9.8" data-duration="2.2" data-track-index="6"><div data-hf-id="hf-casw" class="final-stack" id="final-stack"><h2 data-hf-id="hf-y5v2" class="final-yeri" id="final-yeri">YERI</h2><h2 data-hf-id="hf-iklp" class="final-loko" id="final-loko">LOKOLOKO</h2><div data-hf-id="hf-oomi" class="final-rule" id="final-rule"></div><div data-hf-id="hf-11sw" class="live-wrap" id="live-wrap"><span data-hf-id="hf-d399" class="live-dot"></span><span data-hf-id="hf-cesu" class="live">EN VIVO</span></div></div></section>
+    <div data-hf-id="hf-tx0z" id="outro" class="clip" data-start="11.55" data-duration=".45" data-track-index="7"></div>
+  </div>
+  <script type="module">
+    import * as THREE from './assets/three.module.js';
+    const row=document.getElementById('subtitle-row');
+    'LOKOLOKO'.split('').forEach((letter,i)=>{const span=document.createElement('span');span.className='letter';span.textContent=letter;span.id='letter-'+i;row.appendChild(span)});
+    const field=document.getElementById('speed-field');
+    for(let i=0;i<22;i++){const line=document.createElement('div');line.className='speed-line';line.style.left=((i*97)%880)+'px';line.style.top=(160+((i*211)%1590))+'px';line.style.width=(70+(i*47)%310)+'px';line.style.opacity=.16+(i%5)*.13;field.appendChild(line)}
+    const renderer=new THREE.WebGLRenderer({canvas:document.getElementById('three-layer'),alpha:true,antialias:true,powerPreference:'high-performance'});
+    renderer.setSize(1080,1920,false);renderer.setPixelRatio(1);renderer.outputColorSpace=THREE.SRGBColorSpace;
+    const scene=new THREE.Scene();scene.fog=new THREE.FogExp2(0x030615,.018);
+    const camera=new THREE.PerspectiveCamera(58,1080/1920,.1,150);
+    const count=750,positions=new Float32Array(count*3),colors=new Float32Array(count*3),palette=[[.46,.39,1],[.20,.65,1],[1,.76,.55],[.82,.84,1]];
+    for(let i=0;i<count;i++){const a=i*2.3999632297,radius=1.8+((i*71)%89)/7;positions[i*3]=Math.cos(a)*radius;positions[i*3+1]=Math.sin(a)*radius*1.8;positions[i*3+2]=-5-((i*109)%900)/10;colors.set(palette[i%palette.length],i*3)}
+    const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.BufferAttribute(positions,3));geometry.setAttribute('color',new THREE.BufferAttribute(colors,3));
+    const particles=new THREE.Points(geometry,new THREE.PointsMaterial({size:.08,vertexColors:true,transparent:true,opacity:.9,blending:THREE.AdditiveBlending,depthWrite:false,sizeAttenuation:true}));scene.add(particles);
+    const halo=new THREE.Mesh(new THREE.TorusGeometry(2.3,.025,8,100),new THREE.MeshBasicMaterial({color:0x9a78ff,transparent:true,opacity:.36,blending:THREE.AdditiveBlending}));halo.position.z=-25;scene.add(halo);
+    const halo2=new THREE.Mesh(new THREE.TorusGeometry(4,.012,8,100),new THREE.MeshBasicMaterial({color:0x528dff,transparent:true,opacity:.25,blending:THREE.AdditiveBlending}));halo2.position.z=-29;scene.add(halo2);
+    const core=new THREE.Mesh(new THREE.IcosahedronGeometry(.48,4),new THREE.MeshBasicMaterial({color:0xa596ff,transparent:true,opacity:.8}));core.position.z=-25;scene.add(core);
+    const glowCanvas=document.createElement('canvas');glowCanvas.width=256;glowCanvas.height=256;
+    const glowContext=glowCanvas.getContext('2d'),gradient=glowContext.createRadialGradient(128,128,4,128,128,128);
+    gradient.addColorStop(0,'rgba(255,255,255,1)');gradient.addColorStop(.13,'rgba(203,186,255,.85)');gradient.addColorStop(.42,'rgba(119,76,255,.35)');gradient.addColorStop(1,'rgba(40,70,255,0)');
+    glowContext.fillStyle=gradient;glowContext.fillRect(0,0,256,256);
+    const bloom=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(glowCanvas),transparent:true,opacity:.4,blending:THREE.AdditiveBlending,depthWrite:false}));bloom.position.z=-24.5;scene.add(bloom);
+    function renderAt(time){camera.position.z=7-Math.min(time,9.4)*2.3;camera.position.x=Math.sin(time*.53)*(time>4?.55:.18);camera.position.y=Math.sin(time*.34)*.32;camera.rotation.z=time>6&&time<9.8?Math.sin((time-6)*1.2)*.045:0;particles.rotation.z=time*.012;halo.rotation.x=.26+Math.sin(time*.7)*.12;halo.rotation.y=time*.19;halo2.rotation.y=-.3+time*.11;halo2.rotation.x=-.26;const surge=Math.max(0,1-Math.abs(time-9.35)/.85);halo.scale.setScalar(1+surge*.9);halo.material.opacity=.36+surge*.42;halo2.scale.setScalar(1+surge*.7);core.scale.setScalar(.75+Math.sin(time*2.2)*.18+surge*1.25);core.material.opacity=time<2?Math.min(.85,time*.45):.6+surge*.4;core.material.color.setRGB(.65+surge*.35,.59+surge*.41,1);bloom.scale.set(5+surge*17,5+surge*17,1);bloom.material.opacity=.35+surge*.65;renderer.render(scene,camera)}
+    window.addEventListener('hf-seek',event=>renderAt(event.detail.time));renderAt(window.__hfThreeTime||0);
+    const tl=gsap.timeline({paused:true});
+    tl.fromTo('#opening-ring',{scale:.13,opacity:0},{scale:1.5,opacity:.8,duration:1.7,ease:'power2.in'},.2)
+      .fromTo('#opening-core',{scale:.1,opacity:0},{scale:1.9,opacity:1,duration:1.5,ease:'power3.in'},.35)
+      .fromTo('#aura',{scale:.2,opacity:0},{scale:1.15,opacity:.85,duration:1.65,ease:'power2.in'},.4)
+      .to('#opening-core',{scale:7,opacity:0,duration:.26,ease:'power4.in'},1.88)
+      .to('#opening-ring',{scale:3,opacity:0,duration:.24},1.95)
+      .fromTo('#hero',{z:-1100,scale:.28,opacity:0,rotationX:-12},{z:0,scale:1,opacity:1,rotationX:0,duration:.58,ease:'power4.out'},2.02)
+      .fromTo('#eyebrow',{y:-45,opacity:0},{y:0,opacity:1,duration:.45},2.43)
+      .fromTo('#title-rule',{scaleX:.1,opacity:0},{scaleX:1,opacity:1,duration:.44},2.48)
+      .fromTo('#speed-field',{opacity:0},{opacity:.8,duration:.18},3.95)
+      .fromTo('#subtitle-row .letter',{z:i=>-850-(i%4)*180,x:i=>(i%2?1:-1)*(60+i*18),opacity:0,rotationY:i=>(i%2?1:-1)*42},{z:0,x:0,opacity:1,rotationY:0,duration:.48,stagger:.058,ease:'power4.out'},4.03)
+      .to('#title-wrap',{x:24,rotationY:-3,duration:1.25,ease:'sine.inOut'},4.55)
+      .to('#speed-field .speed-line',{x:950,duration:1.2,stagger:.025,ease:'power2.in'},4.02)
+      .to('#title-wrap',{scale:.28,z:-700,opacity:0,rotationY:13,duration:.65,ease:'power3.in'},6.03)
+      .to('#aura',{opacity:.4,scale:1.8,duration:.8},6.05);
+    const cards=[['#kick',{x:-130,y:-370,z:-220,rotationY:12,rotationX:-7},{x:-150,y:-390,z:90,rotationY:-7,rotationX:4}],['#tiktok',{x:140,y:-10,z:-400,rotationY:-15,rotationX:6},{x:150,y:-20,z:120,rotationY:8,rotationX:-4}],['#youtube',{x:-75,y:380,z:-630,rotationY:10,rotationX:8},{x:-85,y:360,z:80,rotationY:-6,rotationX:-3}]];
+    cards.forEach(([id,start,end],i)=>{tl.fromTo(id,{...start,opacity:0,scale:.72},{...start,opacity:1,scale:1,duration:.55,ease:'power3.out'},6.2+i*.26).to(id,{...end,duration:1.55,ease:'sine.inOut'},6.68+i*.19).to(id,{x:0,y:0,z:650,rotationY:0,rotationX:0,scale:.32,opacity:0,filter:'blur(16px)',duration:.62,ease:'power4.in'},8.55+i*.08)});
+    tl.to('#cards-stage',{rotationY:-7,x:-90,duration:2.2,ease:'sine.inOut'},6.35)
+      .fromTo('#energy-disc',{scale:.2,opacity:0},{scale:2.4,opacity:1,duration:.65,ease:'power4.in'},8.75)
+      .fromTo('#energy-core',{scale:.25,opacity:0},{scale:2,opacity:1,duration:.5,ease:'power4.in'},9.05)
+      .fromTo('#flash',{opacity:0},{opacity:.98,duration:.12},9.65).to('#flash',{opacity:0,duration:.35},9.8)
+      .fromTo('#final-stack',{z:-800,scale:.55,rotationX:12},{z:0,scale:1,rotationX:0,duration:.6,ease:'power4.out'},9.83)
+      .fromTo('#final-yeri',{opacity:0,y:-75},{opacity:1,y:0,duration:.38,ease:'power3.out'},9.87)
+      .fromTo('#final-loko',{opacity:0,y:70},{opacity:1,y:0,duration:.42,ease:'power3.out'},10.04)
+      .fromTo('#final-rule',{opacity:0,scaleX:.2},{opacity:1,scaleX:1,duration:.4},10.25)
+      .fromTo('#live-wrap',{opacity:0,scale:.82},{opacity:1,scale:1,duration:.4,ease:'back.out(2)'},10.38)
+      .to('#live-wrap',{scale:1.075,duration:.34,ease:'sine.inOut',yoyo:true,repeat:2},10.82)
+      .to('#outro',{opacity:1,duration:.45,ease:'power2.inOut'},11.55);
+    window.__timelines=window.__timelines||{};window.__timelines.main=tl;
+  </script>
+</body>
+</html>
