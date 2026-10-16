@@ -23,6 +23,17 @@ export function smartVerticalFilter(decision, hookY = 188, brandY = 1480, videoS
       ...overlay('base'),
     ].join(';');
   }
+  if (decision.strategy === 'content-with-subject') {
+    if (decision.regions?.length !== 2) throw new Error('Content with subject requiere dos regiones.');
+    const [primary, subject] = decision.regions;
+    return [
+      `[0:${videoStreamIndex}]split=2[mainSource][subjectSource]`,
+      `[mainSource]${cropFilter(primary)}scale=1078:898:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=1080:900:(ow-iw)/2:(oh-ih)/2:black[main]`,
+      `[subjectSource]${cropFilter(subject)}scale=1078:448:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=1080:450:(ow-iw)/2:(oh-ih)/2:black[person]`,
+      '[main][person]vstack=inputs=2,pad=1080:1920:0:285:black[base]',
+      ...overlay('base'),
+    ].join(';');
+  }
   if (!decision.crop) throw new Error(`Falta crop para estrategia ${decision.strategy}.`);
   return [
     `[0:${videoStreamIndex}]${cropFilter(decision.crop)}scale=1078:1348:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=1080:1350:(ow-iw)/2:(oh-ih)/2:black,pad=1080:1920:0:285:black[base]`,

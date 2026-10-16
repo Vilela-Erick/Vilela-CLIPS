@@ -23,7 +23,7 @@ export function groupFaces(samples, source) {
       const centerX = face.x + face.width / 2;
       const centerY = face.y + face.height / 2;
       let group = groups.find((item) => !item.samples.has(sampleIndex) &&
-        Math.abs(item.centerX - centerX) < Math.max(source.width * 0.12, face.width * 1.5) &&
+        Math.abs(item.centerX - centerX) < Math.max(source.width * 0.085, face.width * 0.8) &&
         Math.abs(item.centerY - centerY) < Math.max(source.height * 0.2, face.height * 2));
       if (!group) {
         group = { faces: [], samples: new Set(), centerX, centerY };
@@ -59,22 +59,44 @@ export function groupPeople(samples, faces, source) {
     group.centerX = group.boxes.reduce((sum, item) => sum + item.x + item.width / 2, 0) / group.boxes.length;
     group.centerY = group.boxes.reduce((sum, item) => sum + item.y + item.height / 2, 0) / group.boxes.length;
   }
-  const subjects = groups.filter((group) => group.samples.size >= 2).map((group) => {
+  const subjects = faces.map((face) => ({ ...face, faceObserved: true }));
+  for (const group of groups.filter((item) => item.samples.size >= 2)) {
     const x = Math.min(...group.boxes.map((box) => box.x));
     const y = Math.min(...group.boxes.map((box) => box.y));
     const right = Math.max(...group.boxes.map((box) => box.x + box.width));
     const bottom = Math.max(...group.boxes.map((box) => box.y + box.height));
     const person = roundBox({ x, y, width: right - x, height: bottom - y });
-    const face = faces.find((item) => Math.abs(item.face.x + item.face.width / 2 - group.centerX) < person.width * 0.5);
-    const head = face?.face || roundBox({ x: x + person.width * 0.3, y, width: person.width * 0.4, height: person.height * 0.45 });
-    return { id: 0, face: head, faceObserved: Boolean(face), person,
-      persistence: +(group.samples.size / samples.length).toFixed(2),
-      confidence: +(group.boxes.reduce((sum, item) => sum + item.confidence, 0) / group.boxes.length).toFixed(3) };
-  });
-  for (const face of faces) if (!subjects.some((item) => Math.abs(item.face.x + item.face.width / 2 - face.face.x - face.face.width / 2) < source.width * 0.18)) {
-    subjects.push({ ...face, faceObserved: true });
+    const matching = subjects.filter((item) => {
+      const cx = item.face.x + item.face.width / 2;
+      const cy = item.face.y + item.face.height / 2;
+      return cx >= person.x && cx <= person.x + person.width && cy >= person.y - item.face.height && cy <= person.y + person.height;
+    });
+    if (matching.length === 1) matching[0].person = person;
+    if (!matching.length) subjects.push({ id: 0,
+      face: roundBox({ x: x + person.width * 0.3, y, width: person.width * 0.4, height: person.height * 0.45 }),
+      faceObserved: false, person, persistence: +(group.samples.size / samples.length).toFixed(2),
+      confidence: +(group.boxes.reduce((sum, item) => sum + item.confidence, 0) / group.boxes.length).toFixed(3) });
   }
   return subjects.sort((a, b) => a.face.x - b.face.x).map((item, id) => ({ ...item, id }));
+}
+
+export function subjectClusters(subjects, source) {
+  const observed = subjects.filter((item) => item.faceObserved !== false && item.persistence >= 0.4)
+    .sort((a, b) => a.face.x - b.face.x);
+  if (observed.length < 2) return [];
+  const gaps = observed.slice(1).map((item, index) => item.face.x -
+    (observed[index].face.x + observed[index].face.width));
+  const largest = Math.max(...gaps);
+  const split = gaps.indexOf(largest) + 1;
+  const adjacent = [observed[split - 1], observed[split]];
+  if (largest < Math.max(source.width * 0.07,
+    Math.min(...adjacent.map((item) => item.face.width)) * 0.5)) return [];
+  return [observed.slice(0, split), observed.slice(split)].map((members, id) => ({
+    id, subjectIds: members.map((item) => item.id), persistence: Math.max(...members.map((item) => item.persistence)),
+    face: roundBox({ x: Math.min(...members.map((item) => item.face.x)), y: Math.min(...members.map((item) => item.face.y)),
+      width: Math.max(...members.map((item) => item.face.x + item.face.width)) - Math.min(...members.map((item) => item.face.x)),
+      height: Math.max(...members.map((item) => item.face.y + item.face.height)) - Math.min(...members.map((item) => item.face.y)) }),
+  }));
 }
 
 export function detectActiveRegion(frames, transform, source) {
@@ -194,7 +216,9 @@ export async function analyzeVisual(context, candidate, { detector, personDetect
     }
   }
   return { version: 2, detector: `${faceDetector.model || 'injected'} + ${bodyDetector.model || 'injected'}`, source,
-    sampleTimes: sampling.frames.map((frame) => frame.time), activeRegion, videoRegion, subjects, decorative: sidebars,
+    sampleTimes: sampling.frames.map((frame) => frame.time),
+    samples: sampling.frames.map((frame, index) => ({ time: frame.time, faces: detections[index] })),
+    subjectClusters: subjectClusters(subjects, source), activeRegion, videoRegion, subjects, decorative: sidebars,
     timings: { extractionMs: sampling.extractionMs,
       visualAnalysisMs: Math.round(performance.now() - started) } };
 }

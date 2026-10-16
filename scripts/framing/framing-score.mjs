@@ -1,6 +1,6 @@
 import { PERSON_CENTRIC } from './content-classifier.mjs';
 
-export const FRAMING_SCORE_REVISION = 2;
+export const FRAMING_SCORE_REVISION = 9;
 const AREA = 1080 * 1350;
 const clamp = (value, min = 0, max = 1) => Math.max(min, Math.min(max, value));
 const intersection = (a, b) => {
@@ -16,6 +16,8 @@ const intersectBox = (a, b) => {
 
 function panels(candidate, source) {
   if (candidate.strategy === 'recomposed-split') return candidate.regions.map((crop) => ({ crop, width: 1080, height: 675 }));
+  if (candidate.strategy === 'content-with-subject') return candidate.regions.map((crop, index) =>
+    ({ crop, width: 1080, height: index ? 450 : 900 }));
   return [{ crop: candidate.crop || { x: 0, y: 0, width: source.width, height: source.height }, width: 1080, height: 1350 }];
 }
 
@@ -41,14 +43,32 @@ export function effectiveContentAspect(candidate, analysis) {
 export function subjectCoverage(candidate, subjects, source) {
   if (!subjects.length) return 0;
   const parts = panels(candidate, source);
-  let occupied = 0;
+  const projected = [];
   for (const subject of subjects) {
-    let best = 0;
+    let best = null, top = 0;
     for (const panel of parts) {
       const scale = Math.min(panel.width / panel.crop.width, panel.height / panel.crop.height);
-      best = Math.max(best, intersection(subject.person, panel.crop) * scale * scale);
+      const visible = intersectBox(subject.person, panel.crop);
+      const area = visible.width * visible.height * scale * scale;
+      if (!best || area > best.area) best = { area,
+        x: (panel.width - panel.crop.width * scale) / 2 + (visible.x - panel.crop.x) * scale,
+        y: top + (panel.height - panel.crop.height * scale) / 2 + (visible.y - panel.crop.y) * scale,
+        width: visible.width * scale, height: visible.height * scale };
+      top += panel.height;
     }
-    occupied += best;
+    if (best?.area) projected.push(best);
+  }
+  const edges = [...new Set(projected.flatMap((box) => [box.x, box.x + box.width]))].sort((a, b) => a - b);
+  let occupied = 0;
+  for (let i = 1; i < edges.length; i++) {
+    const active = projected.filter((box) => box.x < edges[i] && box.x + box.width > edges[i - 1])
+      .map((box) => [box.y, box.y + box.height]).sort((a, b) => a[0] - b[0]);
+    let length = 0, end = -Infinity;
+    for (const [start, bottom] of active) {
+      length += Math.max(0, bottom - Math.max(start, end));
+      end = Math.max(end, bottom);
+    }
+    occupied += (edges[i] - edges[i - 1]) * length;
   }
   return +clamp(occupied / AREA).toFixed(3);
 }

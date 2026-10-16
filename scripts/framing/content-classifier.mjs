@@ -1,6 +1,7 @@
 export const CONTENT_TYPES = Object.freeze([
   'single-person', 'conversation', 'video-call', 'interview', 'podcast', 'multi-person', 'stream',
   'gameplay', 'gameplay-facecam', 'screen-content', 'presentation', 'native-vertical', 'unknown',
+  'screen-content-with-subject',
 ]);
 
 export const PERSON_CENTRIC = new Set(['single-person', 'conversation', 'video-call', 'interview', 'podcast', 'multi-person']);
@@ -10,6 +11,17 @@ export function classifyContent(analysis) {
   const subjects = analysis.subjects || [];
   if (width / height <= 0.8 && !analysis.activeRegion) return { contentType: 'native-vertical', confidence: 0.98, reason: 'El origen ya es vertical.' };
   if (!subjects.length) return { contentType: 'unknown', confidence: 0.25, reason: 'No se detectaron rostros persistentes; se conserva contexto.' };
+  const observed = subjects.filter((item) => item.faceObserved !== false);
+  const cornerFaces = observed.filter((item) => {
+    const face = item.face, cx = face.x + face.width / 2;
+    return face.width * face.height / (width * height) < 0.012 && face.y < height * 0.23 &&
+      (cx < width * 0.28 || cx > width * 0.72);
+  });
+  const screenAndSubject = cornerFaces.length && (subjects.some((item) => !item.faceObserved) ||
+    observed.some((item) => !cornerFaces.includes(item) &&
+      Math.abs(item.face.x - cornerFaces[0].face.x) > width * 0.25));
+  if (subjects.length > 1 && screenAndSubject) return { contentType: 'screen-content-with-subject', confidence: 0.75,
+    reason: 'Rostros pequeños en un borde y una región principal de contenido separada.' };
   if (subjects.length === 1) {
     const face = subjects[0].face;
     const small = face.width * face.height / (width * height) < 0.004;

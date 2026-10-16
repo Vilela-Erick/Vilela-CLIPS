@@ -5,6 +5,7 @@ import { verticalFilter, safeHook, uniqueName } from './clips-core.mjs';
 import { detectLayoutFromVideo } from './layout-detection.mjs';
 import { smartVerticalFilter } from './framing/ffmpeg-filter.mjs';
 import { SMART_FRAMING_VERSION } from './framing/version.mjs';
+import { FRAMING_SCORE_REVISION } from './framing/framing-score.mjs';
 import { sha256 } from './youtube-core.mjs';
 import { readJson, runProcess, saveJson } from './pipeline-runtime.mjs';
 
@@ -14,7 +15,8 @@ export const RENDER_VERSION = 2;
 export function renderKey(videoId, candidate, layout, settings) {
   return sha256(JSON.stringify({ videoId, start: candidate.start, end: candidate.end, hook: candidate.hook,
     framing: { strategy: layout.strategy ?? layout.layout, crop: layout.crop ?? null, regions: layout.regions ?? null },
-    framingVersion: SMART_FRAMING_VERSION, renderVersion: RENDER_VERSION, settings }));
+    framingVersion: SMART_FRAMING_VERSION, framingScoreRevision: FRAMING_SCORE_REVISION,
+    renderVersion: RENDER_VERSION, settings }));
 }
 
 export function renderArgs(context, candidate, graphics, layout, encoder, destination) {

@@ -7,24 +7,31 @@ import { decideFraming } from './framing-engine.mjs';
 import { FRAMING_SCORE_REVISION } from './framing-score.mjs';
 import { SMART_FRAMING_VERSION } from './version.mjs';
 
-export function framingCacheKey(context, candidate, config = {}, version = SMART_FRAMING_VERSION) {
+const VISUAL_ANALYSIS_REVISION = 'YuNet-2023mar-8f2383e4+MediaPipePose-2023mar+spatial-clusters-3';
+
+export function visualAnalysisCacheKey(context, candidate) {
   return sha256(JSON.stringify({ source: context.sourceSha256, start: candidate.start, end: candidate.end,
-    version, scoreRevision: FRAMING_SCORE_REVISION,
-    detector: 'YuNet-2023mar-8f2383e4+MediaPipePose-2023mar+video-region-1', config }));
+    detector: VISUAL_ANALYSIS_REVISION }));
+}
+
+export function framingCacheKey(context, candidate, config = {}, version = SMART_FRAMING_VERSION) {
+  return sha256(JSON.stringify({ analysisKey: visualAnalysisCacheKey(context, candidate),
+    version, scoreRevision: FRAMING_SCORE_REVISION, config }));
 }
 
 export async function framingForClip(context, candidate, { analyze = analyzeVisual, config = {}, logger = () => {} } = {}) {
   const key = framingCacheKey(context, candidate, config);
-  const dir = join(context.dir, 'framing', key.slice(0, 16));
+  const analysisKey = visualAnalysisCacheKey(context, candidate);
+  const dir = join(context.dir, 'framing', analysisKey.slice(0, 16));
   mkdirSync(dir, { recursive: true });
   const analysisPath = join(dir, 'visual-analysis.json');
-  const decisionPath = join(dir, 'decision.json');
+  const decisionPath = join(dir, `decision-${key.slice(0, 16)}.json`);
   let analysis = readJson(analysisPath);
-  if (analysis?.cacheKey !== key || analysis?.version !== SMART_FRAMING_VERSION) {
-    try { analysis = { ...await analyze(context, candidate), cacheKey: key }; }
+  if (analysis?.cacheKey !== analysisKey || analysis?.version !== SMART_FRAMING_VERSION) {
+    try { analysis = { ...await analyze(context, candidate), cacheKey: analysisKey }; }
     catch (error) {
       logger(`  Smart Framing: análisis visual no disponible (${error.message}); se usa frame completo.`);
-      analysis = { version: SMART_FRAMING_VERSION, cacheKey: key, detector: 'unavailable',
+      analysis = { version: SMART_FRAMING_VERSION, cacheKey: analysisKey, detector: 'unavailable',
         source: { width: context.metadata.width, height: context.metadata.height }, subjects: [],
         decorative: { cropFraction: null, reason: 'Análisis visual no disponible.' },
         timings: { extractionMs: 0, visualAnalysisMs: 0 }, error: error.message };

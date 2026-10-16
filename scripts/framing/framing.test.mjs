@@ -9,10 +9,10 @@ import { analysisTransform, sampleTimes } from './frame-sampler.mjs';
 import { decodeFaces } from './face-detector.mjs';
 import { groupFaces, groupPeople, detectActiveRegion, detectVideoRegion, estimatePersonBox, analyzeVisual } from './visual-analyzer.mjs';
 import { classifyContent, CONTENT_TYPES } from './content-classifier.mjs';
-import { fitCrop, framingCandidates, decideFraming } from './framing-engine.mjs';
+import { fitCrop, framingCandidates, decideFraming, selectPreviewSample } from './framing-engine.mjs';
 import { effectiveContentAspect, subjectCoverage } from './framing-score.mjs';
 import { smartVerticalFilter } from './ffmpeg-filter.mjs';
-import { framingCacheKey, framingForClip } from './framing-cache.mjs';
+import { framingCacheKey, framingForClip, visualAnalysisCacheKey } from './framing-cache.mjs';
 import { previewFraming } from './preview.mjs';
 import { SMART_FRAMING_VERSION } from './version.mjs';
 
@@ -62,6 +62,62 @@ test('agrupa detecciones persistentes y conserva una persona cerca del borde', (
   assert.equal(grouped.length, 1);
   assert.equal(grouped[0].persistence, 0.6);
   assert.equal(grouped[0].person.x, 0);
+});
+
+test('tres rostros, incluido uno intermitente, permanecen separados aunque el detector vea un solo cuerpo', () => {
+  const detections = [[face(320), face(1330, 380, 110, 140), face(1710, 450, 100, 110)],
+    [face(340), face(1340, 380, 110, 140)],
+    [face(330), face(1335, 380, 110, 140), face(1610, 450, 100, 110)],
+    [face(350), face(1345, 380, 110, 140)],
+    [face(340), face(1340, 380, 110, 140), face(1680, 450, 100, 110)]];
+  const bodies = detections.map(() => [{ x: 1200, y: 300, width: 600, height: 500, confidence: 0.8 }]);
+  const subjects = groupPeople(bodies, groupFaces(detections, source), source);
+  assert.equal(subjects.filter((item) => item.faceObserved).length, 3);
+  assert.equal(subjects.length, 3);
+  const data = analysis(subjects);
+  assert.ok(framingCandidates(data, classifyContent(data)).some((item) => item.strategy === 'recomposed-split'));
+});
+
+test('contenido con avatar y webcam en esquina no se clasifica como llamada', () => {
+  const avatar = { ...subject(600), faceObserved: false };
+  const webcam = { ...subject(1570, 1), face: face(1570, 135, 60, 80), faceObserved: true };
+  const data = analysis([avatar, webcam]);
+  assert.equal(classifyContent(data).contentType, 'screen-content-with-subject');
+  assert.ok(framingCandidates(data, classifyContent(data)).some((item) => item.strategy === 'content-with-subject'));
+});
+
+test('reacción separa el contenido observado de tres rostros pequeños de la webcam', () => {
+  const viewed = { ...subject(500), face: face(500, 440, 120, 140), faceObserved: true };
+  const reactors = [1390, 1580, 1800].map((x, index) => ({ ...subject(x, index + 1),
+    face: face(x, 140 + index * 35, 55, 65), faceObserved: true }));
+  const data = analysis([viewed, ...reactors]);
+  const candidate = framingCandidates(data, classifyContent(data)).find((item) => item.strategy === 'content-with-subject');
+  assert.ok(candidate);
+  assert.equal(candidate.regions.length, 2);
+  assert.ok(candidate.regions[0].x < viewed.face.x && candidate.regions[0].x + candidate.regions[0].width > viewed.face.x);
+  assert.ok(candidate.regions[0].width < source.width);
+  assert.ok(candidate.regions[1].x <= reactors[0].face.x);
+  assert.match(smartVerticalFilter({ version: 2, ...candidate }), /force_original_aspect_ratio=decrease/);
+});
+
+test('stream de tres personas no recompone incluyendo una franja lateral decorativa', () => {
+  const people = [
+    { ...subject(425), face: face(425, 300, 165, 245) },
+    { ...subject(667, 1), face: face(667, 437, 312, 400) },
+    { ...subject(1133, 2), face: face(1133, 429, 270, 297) },
+  ];
+  const data = analysis(people, { sidebar: { left: 0.18438, right: 0.18438 } });
+  assert.ok(framingCandidates(data, classifyContent(data)).some((item) => item.strategy === 'enhanced-landscape'));
+  assert.ok(!framingCandidates(data, classifyContent(data)).some((item) => item.strategy === 'recomposed-split'));
+});
+
+test('preview prefiere la muestra con todos los rostros y evita el segundo inicial', () => {
+  const data = { ...analysis([subject(300), subject(1300, 1)]), samples: [
+    { time: 5, faces: [face(300)] }, { time: 15, faces: [face(300), face(1300)] },
+    { time: 25, faces: [face(300)] }, { time: 35, faces: [face(300), face(1300)] },
+    { time: 45, faces: [] }] };
+  assert.deepEqual(selectPreviewSample(data), { timestamp: 15, sampleIndex: 1 });
+  assert.deepEqual(decideFraming(data).previewSample, { timestamp: 15, sampleIndex: 1 });
 });
 
 test('el análisis no elimina un lateral donde se detectó un rostro', async () => {
@@ -152,7 +208,7 @@ test('gameplay con facecam pequeña no fuerza 4:5 y sin rostros mantiene full-fr
   tiny.person = estimatePersonBox(tiny.face, source);
   const data = analysis([tiny]);
   assert.equal(classifyContent(data).contentType, 'gameplay-facecam');
-  assert.equal(decideFraming(data).strategy, 'full-frame');
+  assert.equal(decideFraming(data).strategy, 'content-with-subject');
   assert.equal(decideFraming(analysis()).strategy, 'full-frame');
 });
 
@@ -177,15 +233,14 @@ test('dos personas centrales tienen decisión estable y mejor cobertura', () => 
     { strategy: again.strategy, regions: again.regions, metrics: again.metrics });
 });
 
-test('llamada tipo OmeTV evalúa recomposición y elige mostrar rostros grandes', () => {
+test('llamada tipo OmeTV evalúa recomposición aunque exista recorte lateral', () => {
   const data = analysis([subject(320), subject(1440, 1)], { sidebar: { left: 0.1, right: 0.1 } });
   const decision = decideFraming(data);
   assert.equal(decision.contentType, 'video-call');
   assert.ok(decision.candidates.some((item) => item.strategy === 'recomposed-split'));
-  assert.equal(decision.strategy, 'recomposed-split');
-  assert.equal(decision.regions.length, 2);
-  assert.equal(decision.metrics.effectiveContentAspect, 0.8);
-  assert.ok(decision.metrics.subjectCoverageAfter > decision.metrics.subjectCoverageBefore);
+  const split = decision.candidates.find((item) => item.strategy === 'recomposed-split');
+  assert.equal(split.metrics.facePreservation, 1);
+  assert.ok(split.metrics.subjectCoverage > decision.metrics.subjectCoverageBefore);
 });
 
 test('panel izquierdo, derecho o ambos puede generar enhanced landscape; vertical nativo no se recorta', () => {
@@ -225,12 +280,15 @@ test('cambio de versión altera solo la clave de framing y render, no identidad 
   assert.notEqual(key, framingCacheKey(context, { ...clip, start: 11 }));
   assert.notEqual(key, framingCacheKey(context, clip, { padding: 0.1 }));
   assert.notEqual(key, framingCacheKey(context, clip, {}, SMART_FRAMING_VERSION + 1));
+  assert.equal(visualAnalysisCacheKey(context, clip), visualAnalysisCacheKey(context, clip));
   let calls = 0;
   const analyze = async () => { calls++; return analysis([subject(830)]); };
   await framingForClip(context, clip, { analyze });
   await framingForClip(context, clip, { analyze });
+  await framingForClip(context, clip, { analyze, config: { padding: 0.1 } });
   assert.equal(calls, 1);
-  const data = JSON.parse(readFileSync(join(dir, 'framing', key.slice(0, 16), 'decision.json')));
+  const data = JSON.parse(readFileSync(join(dir, 'framing', visualAnalysisCacheKey(context, clip).slice(0, 16),
+    `decision-${key.slice(0, 16)}.json`)));
   assert.equal(data.version, 2);
   assert.equal(context.sourceSha256, 'a'.repeat(64));
 }));
@@ -238,7 +296,8 @@ test('cambio de versión altera solo la clave de framing y render, no identidad 
 test('preview usa un frame y no lanza render de MP4', temporary(async (dir) => {
   const context = { root: dir, dir, metadata: { source: 'source.mp4', ...source, videoStreamIndex: 0 } };
   const candidate = { start: 10, duration: 30, hook: 'UN MOMENTO DE PRUEBA' };
-  const decision = { ...decideFraming(analysis([subject(830)])), cacheKey: 'b'.repeat(64) };
+  const decision = { ...decideFraming(analysis([subject(830)])), cacheKey: 'b'.repeat(64),
+    previewSample: { timestamp: 19, sampleIndex: 2 } };
   let command;
   const path = await previewFraming(context, candidate, decision, {
     graphics: async () => ({ hookPath: 'hook.png', brandPath: 'brand.png', hookY: 188, brandY: 1480 }),
@@ -246,6 +305,7 @@ test('preview usa un frame y no lanza render de MP4', temporary(async (dir) => {
   });
   assert.equal(command.bin, 'ffmpeg');
   assert.equal(command.args[command.args.indexOf('-frames:v') + 1], '1');
+  assert.equal(command.args[command.args.indexOf('-ss') + 1], '19');
   assert.ok(path.endsWith('.png'));
 }));
 

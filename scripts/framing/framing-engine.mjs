@@ -1,6 +1,7 @@
 import { classifyContent, PERSON_CENTRIC } from './content-classifier.mjs';
 import { scoreCandidate } from './framing-score.mjs';
 import { SMART_FRAMING_VERSION } from './version.mjs';
+import { subjectClusters } from './visual-analyzer.mjs';
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const even = (value) => Math.max(2, 2 * Math.round(value / 2));
@@ -26,26 +27,50 @@ export function fitCrop(bounds, aspect, limits, padding = 0.08) {
   return crop;
 }
 
-function regionsForSplit(subjects, source, padding) {
-  if (subjects.length !== 2) return null;
-  const [left, right] = subjects;
+function regionsForSplit(clusters, source, padding, decorative) {
+  if (clusters.length !== 2) return null;
+  const [left, right] = clusters;
   const midpoint = even((left.face.x + left.face.width + right.face.x) / 2);
   if (midpoint < source.width * 0.25 || midpoint > source.width * 0.75) return null;
+  const liveLeft = decorative ? even(source.width * decorative.left) : 0;
+  const liveRight = decorative ? even(source.width * (1 - decorative.right)) : source.width;
+  if (midpoint <= liveLeft || midpoint >= liveRight) return null;
   const limits = [
-    { x: 0, y: 0, width: midpoint, height: source.height },
-    { x: midpoint, y: 0, width: source.width - midpoint, height: source.height },
+    { x: liveLeft, y: 0, width: midpoint - liveLeft, height: source.height },
+    { x: midpoint, y: 0, width: liveRight - midpoint, height: source.height },
   ];
-  const crops = subjects.map((subject, index) => {
-    // El panel encuadra rostro y torso superior; la parte inferior del cuerpo no siempre es necesaria en una llamada.
-    const face = subject.face;
-    const upperBody = { x: face.x - face.width * 1.1, y: face.y - face.height * 0.5,
-      width: face.width * 3.2, height: face.height * 3 };
-    const crop = fitCrop(upperBody, 1.6, limits[index], padding);
+  const crops = clusters.map((cluster, index) => {
+    const face = cluster.face;
+    const crop = fitCrop(face, 1.6, limits[index], Math.min(padding, 0.06));
     if (!crop || face.x < crop.x || face.x + face.width > crop.x + crop.width ||
       face.y < crop.y || face.y + face.height > crop.y + crop.height) return null;
     return crop;
   });
   return crops.every(Boolean) ? crops : null;
+}
+
+function contentWithSubjectRegions(subjects, source) {
+  const corner = subjects.filter((item) => item.faceObserved !== false && item.face.y < source.height * 0.23 &&
+    item.face.width * item.face.height / (source.width * source.height) < 0.012 &&
+    (item.face.x + item.face.width / 2 < source.width * 0.28 || item.face.x + item.face.width / 2 > source.width * 0.72));
+  if (!corner.length) return null;
+  const rightSide = corner[0].face.x > source.width / 2;
+  const selected = corner.filter((item) => (item.face.x > source.width / 2) === rightSide);
+  const face = union(selected.map((item) => item.face));
+  const secondaryBounds = selected.length === 1 ? { x: face.x - face.width * 0.5,
+    y: face.y - face.height * 0.15, width: face.width * 2, height: face.height * 2 } : face;
+  const secondary = fitCrop(secondaryBounds, 2.4, { x: 0, y: 0, ...source }, selected.length === 1 ? 0.1 : 0.2);
+  if (!secondary) return null;
+  const hasOtherFaces = subjects.some((item) => item.faceObserved !== false && !selected.includes(item));
+  const contentFaces = subjects.filter((item) => item.faceObserved !== false && !selected.includes(item));
+  const primary = hasOtherFaces ? (() => {
+    const content = union(contentFaces.map((item) => item.face));
+    const width = even(Math.min(source.width, Math.max(source.width * 0.46, content.width * 4.5)));
+    const height = even(Math.min(source.height, Math.max(source.height * 0.75, content.height * 5)));
+    return { x: even(clamp(content.x - content.width * 1.4, 0, source.width - width)),
+      y: even(clamp(content.y - content.height * 1.8, 0, source.height - height)), width, height };
+  })() : { x: 0, y: 0, ...source };
+  return [primary, secondary];
 }
 
 export function framingCandidates(analysis, classification, config = {}) {
@@ -63,6 +88,18 @@ export function framingCandidates(analysis, classification, config = {}) {
         reason: 'Se apilan ambos participantes de la franja horizontal incrustada.' });
     }
   }
+  const clusters = analysis.subjectClusters?.length ? analysis.subjectClusters : subjectClusters(subjects, source);
+  if (clusters.length === 2 && union(clusters.map((item) => item.face)).width /
+      Math.max(1, union(clusters.map((item) => item.face)).height) > 1.6) {
+    const regions = regionsForSplit(clusters, source, padding, analysis.decorative?.cropFraction);
+    if (regions) candidates.push({ strategy: 'recomposed-split', regions,
+      reason: 'Clusters espaciales persistentes se apilan sin deformación.' });
+  }
+  if (classification.contentType === 'screen-content-with-subject' || classification.contentType === 'gameplay-facecam') {
+    const regions = contentWithSubjectRegions(subjects, source);
+    if (regions) candidates.push({ strategy: 'content-with-subject', regions,
+      reason: 'Contenido principal y rostros del borde ocupan paneles de distinto tamaño.' });
+  }
   if (!PERSON_CENTRIC.has(classification.contentType) || !subjects.length) {
     if (analysis.decorative?.cropFraction && classification.contentType !== 'native-vertical') {
       const left = even(source.width * analysis.decorative.cropFraction.left);
@@ -77,11 +114,6 @@ export function framingCandidates(analysis, classification, config = {}) {
     const crop = fitCrop(bounds, aspect, { x: 0, y: 0, ...source }, padding);
     if (crop) candidates.push({ strategy: 'people-region', variant: name, crop,
       reason: 'Región estable alrededor de los participantes con margen de seguridad.' });
-  }
-  if (subjects.length === 2) {
-    const regions = regionsForSplit(subjects, source, padding);
-    if (regions) candidates.push({ strategy: 'recomposed-split', regions,
-      reason: 'Dos regiones de participantes se extraen y apilan sin deformación.' });
   }
   const portrait = fitCrop(union(subjects.map((subject) => subject.face)), 4 / 5,
     { x: 0, y: 0, ...source }, padding * 1.5);
@@ -104,6 +136,7 @@ export function decideFraming(analysis, config = {}) {
     .sort((a, b) => b.metrics.score - a.metrics.score);
   const chosen = candidates[0];
   const before = candidates.find((candidate) => candidate.strategy === 'full-frame').metrics;
+  const previewSample = selectPreviewSample(analysis);
   return { version: SMART_FRAMING_VERSION, contentType: classification.contentType,
     strategy: chosen.strategy, confidence: +Math.min(classification.confidence, chosen.metrics.facePreservation).toFixed(3),
     source: { ...analysis.source, aspect: +(analysis.source.width / analysis.source.height).toFixed(3) },
@@ -112,6 +145,25 @@ export function decideFraming(analysis, config = {}) {
       subjectCoverageAfter: chosen.metrics.subjectCoverage },
     candidates: candidates.map(({ strategy, variant, metrics, reason }) => ({ strategy, ...(variant ? { variant } : {}), metrics, reason })),
     reason: `${classification.reason} ${chosen.reason}`,
-    detector: analysis.detector, decorative: analysis.decorative,
+    detector: analysis.detector, decorative: analysis.decorative, previewSample,
     timings: { ...analysis.timings, classificationAndDecisionMs: Math.round(performance.now() - began) } };
+}
+
+export function selectPreviewSample(analysis) {
+  const samples = analysis.samples || [];
+  if (!samples.length) return { timestamp: analysis.sampleTimes?.[2] ?? null, sampleIndex: analysis.sampleTimes?.length ? 2 : null };
+  const expectedFaces = analysis.subjects?.filter((item) => item.faceObserved !== false) || [];
+  const expected = expectedFaces.length;
+  const ranked = samples.map((sample, sampleIndex) => ({ sample, sampleIndex,
+    count: Math.min(expected + 1, sample.faces?.length || 0),
+    layoutDistance: expected ? expectedFaces.reduce((sum, subject) => {
+      const center = subject.face.x + subject.face.width / 2;
+      return sum + Math.min(1, ...(sample.faces || []).map((face) =>
+        Math.abs(center - face.x - face.width / 2) / analysis.source.width));
+    }, 0) / expected : 0,
+    confidence: (sample.faces || []).reduce((sum, face) => sum + (face.confidence || 0), 0),
+    centerDistance: Math.abs(sampleIndex - (samples.length - 1) / 2) }));
+  ranked.sort((a, b) => b.count - a.count || a.layoutDistance - b.layoutDistance ||
+    a.centerDistance - b.centerDistance || b.confidence - a.confidence);
+  return { timestamp: ranked[0].sample.time, sampleIndex: ranked[0].sampleIndex };
 }
